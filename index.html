@@ -1,73 +1,927 @@
 from pathlib import Path
-path = Path("/mnt/data/escolha_segura_aps_contraceptivos.html")
-html = path.read_text(encoding="utf-8")
 
-# Change pink theme variables
-html = html.replace("--primary: #2563eb;", "--primary: #db2777;")
-html = html.replace("--primary-dark: #1d4ed8;", "--primary-dark: #be185d;")
-html = html.replace("background: linear-gradient(135deg, #1e40af, #2563eb);", "background: linear-gradient(135deg, #be185d, #ec4899);")
-html = html.replace("color: #1d4ed8;", "color: #be185d;")
-html = html.replace("color: #1e3a8a;", "color: #831843;")
-html = html.replace("border: 1px solid #bfdbfe;", "border: 1px solid #fbcfe8;")
-html = html.replace("--blue-bg: #dbeafe;", "--blue-bg: #fce7f3;")
+html = r'''<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EscolhaSegura APS - Apoio Contraceptivo</title>
+  <style>
+    :root {
+      --bg: #fff7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --primary: #db2777;
+      --primary-dark: #be185d;
+      --border: #f3d4e3;
+      --green: #16a34a;
+      --green-bg: #dcfce7;
+      --yellow: #ca8a04;
+      --yellow-bg: #fef9c3;
+      --orange: #ea580c;
+      --orange-bg: #ffedd5;
+      --red: #dc2626;
+      --red-bg: #fee2e2;
+      --pink-bg: #fce7f3;
+      --shadow: 0 10px 30px rgba(190, 24, 93, 0.10);
+    }
 
-# Remove triagem tab button
-html = html.replace('      <button class="tab-button" onclick="openTab(\'risco\')">2. Triagem de segurança</button>\n', '')
+    * { box-sizing: border-box; }
 
-# Rename tab numbers
-html = html.replace('      <button class="tab-button" onclick="openTab(\'sus\')">3. Disponível no SUS/Município</button>', 
-                    '      <button class="tab-button" onclick="openTab(\'sus\')">2. Disponível no SUS/Município</button>')
-html = html.replace('      <button class="tab-button" onclick="openTab(\'resultado\')">4. Resultado</button>', 
-                    '      <button class="tab-button" onclick="openTab(\'resultado\')">3. Resultado</button>')
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
 
-# Extract risco section inner card and place before buttons in consulta.
-start = html.index('    <section id="risco" class="tab">')
-end = html.index('    <section id="sus" class="tab">')
-risco_section = html[start:end]
-# extract card content between grid wrappers, keeping card
-card_start = risco_section.index('        <div class="card col-12">')
-card_end = risco_section.rindex('        </div>') + len('        </div>')
-risco_card = risco_section[card_start:card_end]
+    header {
+      background: linear-gradient(135deg, #be185d, #ec4899);
+      color: white;
+      padding: 28px 20px;
+    }
 
-# Remove its own gerar resultado buttons to avoid duplicated? keep maybe okay. We'll remove final buttons in risk card.
-risco_card = risco_card.replace('''
-          <div class="buttons">
-            <button class="primary" onclick="calcularResultado()">Gerar resultado</button>
-          </div>''', '')
+    header .container, .container {
+      max-width: 1180px;
+      margin: 0 auto;
+    }
 
-# Insert before preferences card? Better after dados da consulta first card, before preferences.
-insert_after = '''        </div>
+    .container { padding: 20px; }
 
-        <div class="card col-12">
-          <h2>Preferências e aconselhamento</h2>'''
-replacement = '''        </div>
+    h1 { margin: 0 0 8px; font-size: 30px; }
+    h2 { margin: 0 0 14px; font-size: 22px; }
+    h3 { margin: 18px 0 12px; font-size: 18px; }
 
-''' + risco_card + '''
+    header p {
+      margin: 0;
+      max-width: 900px;
+      line-height: 1.5;
+      opacity: .96;
+    }
 
-        <div class="card col-12">
-          <h2>Preferências e aconselhamento</h2>'''
-html = html.replace(insert_after, replacement, 1)
+    .alert-top {
+      background: #fdf2f8;
+      border: 1px solid #fbcfe8;
+      color: #831843;
+      padding: 14px 16px;
+      border-radius: 14px;
+      margin-bottom: 18px;
+      line-height: 1.5;
+    }
 
-# Remove risk section entirely
-html = html[:start] + html[end:]
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
 
-# Add footer CSS before media query maybe
-footer_css = r'''
+    .tab-button {
+      border: 1px solid var(--border);
+      background: white;
+      color: var(--text);
+      padding: 11px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: .2s;
+    }
+
+    .tab-button:hover { border-color: var(--primary); color: var(--primary); }
+    .tab-button.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+    .tab { display: none; }
+    .tab.active { display: block; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .col-12 { grid-column: span 12; }
+    .col-8 { grid-column: span 8; }
+    .col-6 { grid-column: span 6; }
+    .col-4 { grid-column: span 4; }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 12px;
+    }
+
+    .span-12 { grid-column: span 12; }
+    .span-6 { grid-column: span 6; }
+    .span-4 { grid-column: span 4; }
+    .span-3 { grid-column: span 3; }
+
+    .field { margin-bottom: 14px; }
+
+    label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 7px;
+      font-size: 14px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 11px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      font-size: 15px;
+      background: white;
+      color: var(--text);
+    }
+
+    textarea { min-height: 90px; resize: vertical; }
+
+    .checkbox-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px;
+    }
+
+    .check-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #fffafd;
+    }
+
+    .check-item input { width: auto; margin-top: 2px; }
+    .check-item span { font-size: 14px; line-height: 1.35; }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    button.primary, button.secondary {
+      padding: 12px 16px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 15px;
+    }
+
+    button.primary {
+      background: var(--primary);
+      color: white;
+      border: 0;
+    }
+
+    button.primary:hover { background: var(--primary-dark); }
+
+    button.secondary {
+      background: white;
+      color: var(--primary);
+      border: 1px solid var(--primary);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      margin: 3px;
+    }
+
+    .pill.green { background: var(--green-bg); color: var(--green); }
+    .pill.yellow { background: var(--yellow-bg); color: var(--yellow); }
+    .pill.orange { background: var(--orange-bg); color: var(--orange); }
+    .pill.red { background: var(--red-bg); color: var(--red); }
+    .pill.pink { background: var(--pink-bg); color: #be185d; }
+
+    .method-card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 10px;
+      background: white;
+    }
+
+    .method-card.green { border-left: 7px solid var(--green); }
+    .method-card.yellow { border-left: 7px solid var(--yellow); }
+    .method-card.orange { border-left: 7px solid var(--orange); }
+    .method-card.red { border-left: 7px solid var(--red); }
+
+    .method-title { font-weight: 800; font-size: 17px; margin-bottom: 5px; }
+    .method-sub { color: var(--muted); font-size: 14px; margin-bottom: 7px; line-height: 1.4; }
+    .method-reasons { margin: 8px 0 0; padding-left: 18px; line-height: 1.45; color: #374151; font-size: 14px; }
+
+    .sus-table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 12px;
+      font-size: 14px;
+    }
+
+    .sus-table th, .sus-table td {
+      border: 1px solid var(--border);
+      padding: 10px;
+      vertical-align: top;
+      text-align: left;
+    }
+
+    .sus-table th { background: #fdf2f8; color: #831843; }
+
+    .small { color: var(--muted); font-size: 13px; line-height: 1.45; }
+
+    .soap-box {
+      background: #831843;
+      color: #fff7fb;
+      border-radius: 14px;
+      padding: 16px;
+      white-space: pre-wrap;
+      line-height: 1.5;
+      font-family: "Courier New", monospace;
+      font-size: 14px;
+    }
+
+    .warning {
+      background: var(--red-bg);
+      color: #7f1d1d;
+      border: 1px solid #fecaca;
+      padding: 12px;
+      border-radius: 12px;
+      margin: 10px 0;
+      line-height: 1.45;
+    }
+
+    .info {
+      background: var(--pink-bg);
+      color: #831843;
+      border: 1px solid #fbcfe8;
+      padding: 12px;
+      border-radius: 12px;
+      margin: 10px 0;
+      line-height: 1.45;
+    }
+
     footer {
       text-align: center;
       color: #831843;
       font-weight: 700;
       padding: 24px 20px 34px;
-      letter-spacing: 0.3px;
+      letter-spacing: .3px;
     }
+
+    @media (max-width: 850px) {
+      .col-8, .col-6, .col-4 { grid-column: span 12; }
+      .span-6, .span-4, .span-3 { grid-column: span 12; }
+      .checkbox-grid { grid-template-columns: 1fr; }
+      header { padding: 22px 16px; }
+      h1 { font-size: 24px; }
+    }
+
+    @media print {
+      header, .tabs, .buttons, .alert-top { display: none; }
+      body { background: white; }
+      .card { box-shadow: none; border: 1px solid #ccc; }
+      .tab { display: block; }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="container">
+      <h1>EscolhaSegura APS</h1>
+      <p>Programa de apoio à equipe de enfermagem para escolha de método contraceptivo, com triagem de contraindicações, disponibilidade local e saída em SOAP para o PEC.</p>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="alert-top">
+      <strong>Aviso:</strong> este sistema é um apoio à decisão. A prescrição, dispensação, administração e encaminhamento devem seguir protocolo municipal, normas do serviço e avaliação profissional.
+    </div>
+
+    <nav class="tabs">
+      <button class="tab-button active" onclick="openTab('consulta')">1. Consulta e triagem</button>
+      <button class="tab-button" onclick="openTab('sus')">2. Disponível no SUS/Município</button>
+      <button class="tab-button" onclick="openTab('resultado')">3. Resultado</button>
+      <button class="tab-button" onclick="openTab('orientacoes')">Orientações rápidas</button>
+    </nav>
+
+    <section id="consulta" class="tab active">
+      <div class="grid">
+        <div class="card col-12">
+          <h2>Dados da consulta</h2>
+          <div class="row">
+            <div class="field span-4">
+              <label>Motivo da consulta</label>
+              <select id="motivo">
+                <option value="">Selecione</option>
+                <option>Iniciar método contraceptivo</option>
+                <option>Trocar método contraceptivo</option>
+                <option>Renovar método em uso</option>
+                <option>Contracepção de emergência</option>
+                <option>Pós-parto / amamentação</option>
+                <option>Pós-abortamento</option>
+                <option>Desejo de DIU</option>
+                <option>Desejo de Implanon</option>
+                <option>Queixa ou efeito adverso com método atual</option>
+              </select>
+            </div>
+            <div class="field span-4">
+              <label>Idade</label>
+              <input id="idade" type="number" min="9" max="60" placeholder="Ex.: 28" />
+            </div>
+            <div class="field span-4">
+              <label>DUM</label>
+              <input id="dum" type="date" />
+            </div>
+            <div class="field span-4">
+              <label>Ciclo menstrual</label>
+              <select id="ciclo">
+                <option value="">Selecione</option>
+                <option>Regular</option>
+                <option>Irregular</option>
+                <option>Amenorreia</option>
+                <option>Não sabe informar</option>
+              </select>
+            </div>
+            <div class="field span-4">
+              <label>Relação desprotegida nos últimos 5 dias?</label>
+              <select id="rs5">
+                <option value="">Selecione</option>
+                <option value="sim">Sim</option>
+                <option value="nao">Não</option>
+                <option value="incerto">Incerto</option>
+              </select>
+            </div>
+            <div class="field span-4">
+              <label>Relação desprotegida desde a última menstruação?</label>
+              <select id="rsdum">
+                <option value="">Selecione</option>
+                <option value="sim">Sim</option>
+                <option value="nao">Não</option>
+                <option value="incerto">Incerto</option>
+              </select>
+            </div>
+            <div class="field span-4">
+              <label>Deseja engravidar nos próximos 12 meses?</label>
+              <select id="desejoGestacao">
+                <option value="">Selecione</option>
+                <option value="sim">Sim</option>
+                <option value="nao">Não</option>
+                <option value="incerto">Incerto</option>
+              </select>
+            </div>
+            <div class="field span-4">
+              <label>Amamentando?</label>
+              <select id="amamentando">
+                <option value="">Selecione</option>
+                <option value="sim">Sim</option>
+                <option value="nao">Não</option>
+              </select>
+            </div>
+            <div class="field span-4">
+              <label>Semanas pós-parto</label>
+              <input id="semanasParto" type="number" min="0" max="260" placeholder="Ex.: 8. Se não se aplica, deixe em branco." />
+            </div>
+            <div class="field span-6">
+              <label>Método atual</label>
+              <input id="metodoAtual" type="text" placeholder="Ex.: nenhum, pílula, injetável, preservativo..." />
+            </div>
+            <div class="field span-6">
+              <label>Preferência da paciente</label>
+              <select id="preferencia">
+                <option value="">Selecione</option>
+                <option value="diario">Método diário</option>
+                <option value="mensal">Método mensal</option>
+                <option value="trimestral">Método trimestral</option>
+                <option value="longa">Método de longa duração</option>
+                <option value="semHormônio">Evitar hormônio</option>
+                <option value="emergencia">Contracepção de emergência</option>
+                <option value="indiferente">Sem preferência / quer orientação</option>
+              </select>
+            </div>
+            <div class="field span-12">
+              <label>Observações livres</label>
+              <textarea id="obs" placeholder="Ex.: dificuldade de lembrar comprimido, medo de procedimento, desejo de amenorreia, efeitos prévios..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="card col-12">
+          <h2>Triagem de segurança</h2>
+          <div class="row">
+            <div class="field span-3">
+              <label>PA sistólica</label>
+              <input id="pas" type="number" min="70" max="260" placeholder="Ex.: 120" />
+            </div>
+            <div class="field span-3">
+              <label>PA diastólica</label>
+              <input id="pad" type="number" min="40" max="160" placeholder="Ex.: 80" />
+            </div>
+            <div class="field span-3">
+              <label>Tabagismo</label>
+              <select id="tabagismo">
+                <option value="">Selecione</option>
+                <option value="nao">Não</option>
+                <option value="sim">Sim</option>
+              </select>
+            </div>
+            <div class="field span-3">
+              <label>Cigarros/dia, se tabagista</label>
+              <input id="cigarrosDia" type="number" min="0" max="80" placeholder="Ex.: 10" />
+            </div>
+          </div>
+
+          <h3>Marque condições presentes</h3>
+          <div class="checkbox-grid">
+            <label class="check-item"><input type="checkbox" id="enxaquecaAura" /><span>Enxaqueca com aura</span></label>
+            <label class="check-item"><input type="checkbox" id="trombose" /><span>História de trombose/TEP</span></label>
+            <label class="check-item"><input type="checkbox" id="avc" /><span>AVC ou doença cardiovascular importante</span></label>
+            <label class="check-item"><input type="checkbox" id="hasGrave" /><span>HAS grave ou de difícil controle</span></label>
+            <label class="check-item"><input type="checkbox" id="dmVascular" /><span>Diabetes com complicação vascular</span></label>
+            <label class="check-item"><input type="checkbox" id="cancerMamaAtual" /><span>Câncer de mama atual</span></label>
+            <label class="check-item"><input type="checkbox" id="cancerMamaPrevio" /><span>Câncer de mama prévio</span></label>
+            <label class="check-item"><input type="checkbox" id="sangramentoAnormal" /><span>Sangramento uterino anormal sem investigação</span></label>
+            <label class="check-item"><input type="checkbox" id="doencaHepatica" /><span>Doença hepática grave</span></label>
+            <label class="check-item"><input type="checkbox" id="anticonvulsivante" /><span>Uso de anticonvulsivante indutor enzimático</span></label>
+            <label class="check-item"><input type="checkbox" id="rifampicina" /><span>Uso de rifampicina/rifapentina</span></label>
+            <label class="check-item"><input type="checkbox" id="bariatricaDisabsortiva" /><span>Cirurgia bariátrica disabsortiva</span></label>
+            <label class="check-item"><input type="checkbox" id="lupusSaf" /><span>Lúpus com SAF/anticorpos antifosfolípides</span></label>
+            <label class="check-item"><input type="checkbox" id="imobilizacao" /><span>Imobilização prolongada/cirurgia maior</span></label>
+            <label class="check-item"><input type="checkbox" id="suspeitaGravidez" /><span>Suspeita de gravidez</span></label>
+            <label class="check-item"><input type="checkbox" id="istAtual" /><span>IST atual, cervicite purulenta ou DIP atual</span></label>
+            <label class="check-item"><input type="checkbox" id="dorPelvica" /><span>Dor pélvica importante/investigação pendente</span></label>
+            <label class="check-item"><input type="checkbox" id="alergiaMetodo" /><span>Alergia conhecida a algum componente</span></label>
+          </div>
+        </div>
+
+        <div class="card col-12">
+          <h2>Preferências e aconselhamento</h2>
+          <div class="checkbox-grid">
+            <label class="check-item"><input type="checkbox" id="aceitaIrregularidade" /><span>Aceita possibilidade de sangramento irregular</span></label>
+            <label class="check-item"><input type="checkbox" id="querDiscreto" /><span>Deseja método discreto</span></label>
+            <label class="check-item"><input type="checkbox" id="querMenosMenstruacao" /><span>Deseja menstruar menos</span></label>
+            <label class="check-item"><input type="checkbox" id="dificuldadeLembrar" /><span>Tem dificuldade de lembrar comprimido diário</span></label>
+            <label class="check-item"><input type="checkbox" id="riscoIST" /><span>Risco de IST / múltiplas parcerias / parceria nova</span></label>
+            <label class="check-item"><input type="checkbox" id="violenciaSexual" /><span>Suspeita/relato de violência sexual</span></label>
+          </div>
+          <div class="buttons">
+            <button class="primary" onclick="calcularResultado()">Gerar resultado</button>
+            <button class="secondary" onclick="limparFormulario()">Limpar formulário</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="sus" class="tab">
+      <div class="grid">
+        <div class="card col-12">
+          <h2>Disponível no SUS / Município</h2>
+          <p class="small">Lista configurada com os métodos informados. O resultado cruza elegibilidade clínica com disponibilidade local.</p>
+          <table class="sus-table">
+            <thead>
+              <tr>
+                <th>Método</th>
+                <th>Apresentação disponível</th>
+                <th>Tipo</th>
+                <th>Acesso local</th>
+                <th>Observações</th>
+              </tr>
+            </thead>
+            <tbody id="susTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="resultado" class="tab">
+      <div class="grid">
+        <div class="card col-8">
+          <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:12px;">
+            <h2>Resultado da avaliação</h2>
+            <button class="primary" onclick="calcularResultado()">Atualizar resultado</button>
+          </div>
+          <div id="painelResumo" class="info">Preencha a consulta e clique em “Gerar resultado”.</div>
+          <div id="alertas"></div>
+          <h3>Métodos avaliados</h3>
+          <div id="metodosResultado"></div>
+        </div>
+
+        <div class="card col-4">
+          <h2>Resumo rápido</h2>
+          <div id="resumoRapido" class="small">Nenhum resultado gerado ainda.</div>
+          <h3>Prioridade sugerida</h3>
+          <div id="prioridade" class="small">Aguardando preenchimento.</div>
+        </div>
+
+        <div class="card col-12">
+          <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:12px;">
+            <h2>SOAP para copiar no PEC</h2>
+            <button class="secondary" onclick="copiarSOAP()">Copiar SOAP</button>
+          </div>
+          <div id="soap" class="soap-box">Preencha os dados e gere o resultado.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="orientacoes" class="tab">
+      <div class="grid">
+        <div class="card col-6">
+          <h2>Orientações gerais para paciente</h2>
+          <ul>
+            <li>Preservativo deve ser ofertado mesmo quando outro método for escolhido, especialmente para prevenção de IST.</li>
+            <li>Métodos com estrogênio exigem triagem de PA, tabagismo, enxaqueca com aura, trombose, AVC e puerpério.</li>
+            <li>Métodos só com progestagênio podem causar sangramento irregular ou amenorreia.</li>
+            <li>Contracepção de emergência deve ser usada o quanto antes após relação desprotegida/falha do método.</li>
+            <li>DIU de cobre e Implanon aparecem como opções, mas neste município exigem encaminhamento.</li>
+          </ul>
+        </div>
+        <div class="card col-6">
+          <h2>Sinais de alerta</h2>
+          <ul>
+            <li>Dor torácica, falta de ar, dor/inchaço em perna, déficit neurológico, cefaleia intensa nova.</li>
+            <li>Sangramento intenso ou persistente com sinais de anemia/instabilidade.</li>
+            <li>Dor pélvica importante, febre, corrimento purulento.</li>
+            <li>Atraso menstrual ou suspeita de gravidez.</li>
+            <li>PA muito elevada ou sintomas de crise hipertensiva.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>Developed by SM APS</footer>
+
+  <script>
+    const metodosSUS = [
+      { id:"preservativo", nome:"Preservativo masculino", apresentacao:"Preservativo masculino", tipo:"Barreira", acesso:"Disponível na UBS / livre demanda", obs:"Ofertar para todos, especialmente para prevenção de IST. Pode ser associado a qualquer outro método.", disponibilidade:"ubs" },
+      { id:"levonorgestrel", nome:"Levonorgestrel 0,75 mg", apresentacao:"Levonorgestrel 0,75 mg", tipo:"Contracepção de emergência", acesso:"Disponível na UBS / farmácia, conforme fluxo local", obs:"Usar após relação desprotegida ou falha do método. Não é método de rotina.", disponibilidade:"ubs" },
+      { id:"aco", nome:"Etinilestradiol + levonorgestrel", apresentacao:"0,03 mg + 0,15 mg, cartela com 21 comprimidos", tipo:"Hormonal combinado com estrogênio", acesso:"Disponível na UBS / farmácia", obs:"Exige triagem de contraindicações ao estrogênio.", disponibilidade:"ubs" },
+      { id:"pop", nome:"Noretisterona 0,35 mg", apresentacao:"Comprimidos", tipo:"Progestagênio isolado", acesso:"Disponível na UBS / farmácia", obs:"Boa opção quando não pode usar estrogênio. Orientar tomada no mesmo horário.", disponibilidade:"ubs" },
+      { id:"mensal", nome:"Noretisterona enantato + estradiol valerato", apresentacao:"50 mg + 5 mg/mL, ampola 1 mL", tipo:"Injetável mensal combinado com estrogênio", acesso:"Disponível na UBS / sala de medicação", obs:"Exige triagem de contraindicações ao estrogênio. Aplicação mensal.", disponibilidade:"ubs" },
+      { id:"trimestral", nome:"Medroxiprogesterona acetato", apresentacao:"150 mg/mL, ampola 1 mL", tipo:"Injetável trimestral, progestagênio isolado", acesso:"Disponível na UBS / sala de medicação", obs:"Aplicação a cada 3 meses. Orientar sangramento irregular, amenorreia e possível atraso no retorno da fertilidade.", disponibilidade:"ubs" },
+      { id:"diu", nome:"DIU de cobre", apresentacao:"DIU cobre", tipo:"Longa duração, não hormonal", acesso:"Encaminhar para GO", obs:"Checar gravidez, sangramento anormal, IST/DIP atual e dor pélvica antes do encaminhamento.", disponibilidade:"encaminhamento" },
+      { id:"implanon", nome:"Implanon", apresentacao:"Implante subdérmico de etonogestrel", tipo:"Longa duração, progestagênio isolado", acesso:"Precisa encaminhar", obs:"Aplicar critérios de prioridade municipal, se houver. Orientar sangramento irregular/amenorreia.", disponibilidade:"encaminhamento" }
+    ];
+
+    const byId = id => document.getElementById(id);
+    const checked = id => byId(id).checked;
+    const value = id => byId(id).value;
+    const num = id => {
+      const v = parseFloat(value(id));
+      return isNaN(v) ? null : v;
+    };
+
+    function openTab(tabId) {
+      document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
+      document.querySelectorAll(".tab-button").forEach(btn => btn.classList.remove("active"));
+      byId(tabId).classList.add("active");
+      const clicked = Array.from(document.querySelectorAll(".tab-button")).find(btn => btn.getAttribute("onclick").includes("'" + tabId + "'"));
+      if (clicked) clicked.classList.add("active");
+    }
+
+    function preencherTabelaSUS() {
+      byId("susTableBody").innerHTML = metodosSUS.map(m => `
+        <tr>
+          <td><strong>${m.nome}</strong></td>
+          <td>${m.apresentacao}</td>
+          <td>${m.tipo}</td>
+          <td>${m.acesso}</td>
+          <td>${m.obs}</td>
+        </tr>
+      `).join("");
+    }
+
+    function avaliarRiscos() {
+      const idade = num("idade");
+      const pas = num("pas");
+      const pad = num("pad");
+      const semanasParto = num("semanasParto");
+      const tabagismo = value("tabagismo") === "sim";
+      const cigarrosDia = num("cigarrosDia") || 0;
+      const amamentando = value("amamentando") === "sim";
+
+      const risco = {
+        gravidezPossivel: checked("suspeitaGravidez") || value("rsdum") === "sim" || value("rsdum") === "incerto",
+        emergencia: value("rs5") === "sim" || value("motivo") === "Contracepção de emergência" || value("preferencia") === "emergencia",
+        violenciaSexual: checked("violenciaSexual"),
+        riscoIST: checked("riscoIST"),
+        estrogenioContraindicado: false,
+        estrogenioCautela: false,
+        progestagenioContraindicado: false,
+        progestagenioCautela: false,
+        diuContraindicado: false,
+        diuCautela: false,
+        precisaMedico: false,
+        motivosEstrogenio: [],
+        motivosProgestagenio: [],
+        motivosDIU: [],
+        alertas: []
+      };
+
+      if ((pas !== null && pas >= 160) || (pad !== null && pad >= 100) || checked("hasGrave")) {
+        risco.estrogenioContraindicado = true;
+        risco.precisaMedico = true;
+        risco.motivosEstrogenio.push("PA ≥160/100 mmHg ou HAS grave/de difícil controle.");
+        risco.alertas.push("PA elevada/HAS grave: não iniciar método combinado com estrogênio. Avaliar controle pressórico.");
+      } else if ((pas !== null && pas >= 140) || (pad !== null && pad >= 90)) {
+        risco.estrogenioCautela = true;
+        risco.motivosEstrogenio.push("PA elevada: requer cautela e acompanhamento.");
+      }
+
+      if (checked("enxaquecaAura")) { risco.estrogenioContraindicado = true; risco.motivosEstrogenio.push("Enxaqueca com aura."); }
+      if (checked("trombose")) { risco.estrogenioContraindicado = true; risco.motivosEstrogenio.push("História de trombose/TEP."); }
+      if (checked("avc")) { risco.estrogenioContraindicado = true; risco.motivosEstrogenio.push("AVC ou doença cardiovascular importante."); }
+      if (idade !== null && idade >= 35 && tabagismo) { risco.estrogenioContraindicado = true; risco.motivosEstrogenio.push(`Tabagismo em paciente ≥35 anos${cigarrosDia ? " (" + cigarrosDia + " cigarros/dia)" : ""}.`); }
+      if (checked("dmVascular")) { risco.estrogenioContraindicado = true; risco.motivosEstrogenio.push("Diabetes com complicação vascular."); }
+      if (checked("doencaHepatica")) { risco.estrogenioContraindicado = true; risco.progestagenioCautela = true; risco.motivosEstrogenio.push("Doença hepática grave."); risco.motivosProgestagenio.push("Doença hepática grave: avaliar caso."); }
+      if (checked("lupusSaf")) { risco.estrogenioContraindicado = true; risco.precisaMedico = true; risco.motivosEstrogenio.push("Lúpus com SAF/anticorpos antifosfolípides."); }
+      if (checked("imobilizacao")) { risco.estrogenioContraindicado = true; risco.motivosEstrogenio.push("Imobilização prolongada/cirurgia maior."); }
+
+      if (amamentando && semanasParto !== null && semanasParto < 6) {
+        risco.estrogenioContraindicado = true;
+        risco.motivosEstrogenio.push("Amamentação com menos de 6 semanas pós-parto.");
+      } else if (amamentando && semanasParto !== null && semanasParto < 24) {
+        risco.estrogenioCautela = true;
+        risco.motivosEstrogenio.push("Amamentação/puerpério: preferir método sem estrogênio conforme protocolo.");
+      }
+
+      if (checked("cancerMamaAtual")) {
+        risco.estrogenioContraindicado = true;
+        risco.progestagenioContraindicado = true;
+        risco.precisaMedico = true;
+        risco.motivosEstrogenio.push("Câncer de mama atual.");
+        risco.motivosProgestagenio.push("Câncer de mama atual.");
+      }
+
+      if (checked("cancerMamaPrevio")) {
+        risco.estrogenioContraindicado = true;
+        risco.progestagenioCautela = true;
+        risco.precisaMedico = true;
+        risco.motivosEstrogenio.push("Câncer de mama prévio.");
+        risco.motivosProgestagenio.push("Câncer de mama prévio: discutir caso/avaliar risco-benefício.");
+      }
+
+      if (checked("sangramentoAnormal")) {
+        risco.estrogenioCautela = true;
+        risco.progestagenioCautela = true;
+        risco.diuCautela = true;
+        risco.precisaMedico = true;
+        risco.motivosEstrogenio.push("Sangramento uterino anormal sem investigação.");
+        risco.motivosProgestagenio.push("Sangramento uterino anormal sem investigação.");
+        risco.motivosDIU.push("Sangramento uterino anormal sem investigação.");
+        risco.alertas.push("Sangramento uterino anormal sem investigação: avaliar antes de iniciar método que possa mascarar o quadro.");
+      }
+
+      if (checked("anticonvulsivante") || checked("rifampicina")) {
+        risco.progestagenioCautela = true;
+        risco.estrogenioCautela = true;
+        const med = checked("rifampicina") ? "rifampicina/rifapentina" : "anticonvulsivante indutor enzimático";
+        risco.motivosProgestagenio.push(`Uso de ${med}: pode reduzir eficácia de alguns métodos hormonais.`);
+        risco.motivosEstrogenio.push(`Uso de ${med}: pode reduzir eficácia de alguns métodos hormonais.`);
+      }
+
+      if (checked("bariatricaDisabsortiva")) {
+        risco.estrogenioCautela = true;
+        risco.progestagenioCautela = true;
+        risco.motivosEstrogenio.push("Cirurgia bariátrica disabsortiva: evitar depender de método oral se possível.");
+        risco.motivosProgestagenio.push("Cirurgia bariátrica disabsortiva: evitar depender de método oral se possível.");
+      }
+
+      if (checked("suspeitaGravidez")) { risco.precisaMedico = true; risco.alertas.push("Suspeita de gravidez: avaliar antes de iniciar método regular."); }
+
+      if (checked("istAtual") || checked("dorPelvica")) {
+        risco.diuContraindicado = checked("istAtual");
+        risco.diuCautela = true;
+        risco.precisaMedico = true;
+        if (checked("istAtual")) risco.motivosDIU.push("IST atual, cervicite purulenta ou DIP atual.");
+        if (checked("dorPelvica")) risco.motivosDIU.push("Dor pélvica importante/investigação pendente.");
+      }
+
+      if (checked("alergiaMetodo")) { risco.alertas.push("Alergia conhecida: confirmar componente antes da prescrição/dispensação."); risco.precisaMedico = true; }
+      if (risco.violenciaSexual) { risco.precisaMedico = true; risco.alertas.push("Suspeita/relato de violência sexual: seguir protocolo de violência sexual, profilaxias, notificação e cuidado integral."); }
+      if (risco.emergencia) risco.alertas.push("Relação desprotegida/falha nos últimos 5 dias: avaliar contracepção de emergência e necessidade de teste/orientação de retorno.");
+      if (risco.riscoIST) risco.alertas.push("Risco de IST: orientar preservativo e avaliar testagem conforme protocolo.");
+
+      return risco;
+    }
+
+    function classificarMetodo(metodo, risco) {
+      let status = "green";
+      let tituloStatus = "Pode usar/ofertar conforme protocolo";
+      let motivos = [];
+
+      if (metodo.id === "preservativo") {
+        return { status:"green", tituloStatus:"Ofertar sempre", motivos:["Método de barreira e prevenção de IST."] };
+      }
+
+      if (metodo.id === "levonorgestrel") {
+        if (risco.emergencia) return { status:"green", tituloStatus:"Indicado para fluxo de emergência", motivos:["Há relato/suspeita de relação desprotegida ou falha do método nos últimos 5 dias."] };
+        return { status:"yellow", tituloStatus:"Disponível, mas não é método de rotina", motivos:["Usar apenas como contracepção de emergência, não como método regular."] };
+      }
+
+      if (metodo.id === "aco" || metodo.id === "mensal") {
+        if (risco.gravidezPossivel) { status = "orange"; tituloStatus = "Avaliar gravidez antes de iniciar"; motivos.push("Gestação possível/incerta."); }
+        if (risco.estrogenioContraindicado) { status = "red"; tituloStatus = "Contraindicado/evitar"; motivos = motivos.concat(risco.motivosEstrogenio); }
+        else if (risco.estrogenioCautela && status !== "red") { status = "yellow"; tituloStatus = "Usar com cautela/avaliar"; motivos = motivos.concat(risco.motivosEstrogenio); }
+        if (!motivos.length) motivos.push("Sem contraindicação ao estrogênio identificada nos dados preenchidos.");
+        return { status, tituloStatus, motivos };
+      }
+
+      if (metodo.id === "pop" || metodo.id === "trimestral" || metodo.id === "implanon") {
+        if (risco.gravidezPossivel) { status = "orange"; tituloStatus = "Avaliar gravidez antes de iniciar"; motivos.push("Gestação possível/incerta."); }
+        if (risco.progestagenioContraindicado) { status = "red"; tituloStatus = "Contraindicado/evitar"; motivos = motivos.concat(risco.motivosProgestagenio); }
+        else if (risco.progestagenioCautela && status !== "red") { status = status === "orange" ? "orange" : "yellow"; tituloStatus = status === "orange" ? "Avaliar antes de iniciar" : "Usar com cautela/avaliar"; motivos = motivos.concat(risco.motivosProgestagenio); }
+        if (metodo.id === "pop" && checked("dificuldadeLembrar")) { status = status === "green" ? "yellow" : status; motivos.push("Paciente relata dificuldade de lembrar comprimido diário; método pode ter pior adesão."); }
+        if (metodo.id === "trimestral") motivos.push("Orientar sangramento irregular/amenorreia e possível atraso no retorno da fertilidade.");
+        if (metodo.id === "implanon") { status = status === "green" ? "orange" : status; tituloStatus = status === "orange" ? "Elegível, mas precisa encaminhar" : tituloStatus; motivos.push("Método exige encaminhamento conforme fluxo municipal."); }
+        if (!motivos.length) motivos.push("Método sem estrogênio; sem contraindicação específica identificada nos dados preenchidos.");
+        return { status, tituloStatus, motivos };
+      }
+
+      if (metodo.id === "diu") {
+        status = "orange"; tituloStatus = "Elegível, mas precisa encaminhar para GO"; motivos.push("Método exige encaminhamento para GO conforme fluxo municipal.");
+        if (risco.gravidezPossivel || checked("suspeitaGravidez")) motivos.push("Avaliar possibilidade de gravidez antes da inserção.");
+        if (risco.diuContraindicado) { status = "red"; tituloStatus = "Contraindicado/adiar até tratamento/avaliação"; motivos = motivos.concat(risco.motivosDIU); }
+        else if (risco.diuCautela) { status = "orange"; motivos = motivos.concat(risco.motivosDIU); }
+        return { status, tituloStatus, motivos };
+      }
+
+      return { status, tituloStatus, motivos };
+    }
+
+    function ordenarPorPreferencia(avaliados) {
+      const pref = value("preferencia");
+      const statusPeso = { green:0, yellow:1, orange:2, red:3 };
+      const base = { preservativo:9, levonorgestrel:8, aco:5, pop:5, mensal:5, trimestral:5, diu:4, implanon:4 };
+      const bonus = id => {
+        if (pref === "diario" && (id === "aco" || id === "pop")) return -10;
+        if (pref === "mensal" && id === "mensal") return -10;
+        if (pref === "trimestral" && id === "trimestral") return -10;
+        if (pref === "longa" && (id === "diu" || id === "implanon")) return -10;
+        if (pref === "semHormônio" && (id === "diu" || id === "preservativo")) return -10;
+        if (pref === "emergencia" && id === "levonorgestrel") return -10;
+        return 0;
+      };
+      return avaliados.sort((a,b) => (statusPeso[a.avaliacao.status] + base[a.id] + bonus(a.id)) - (statusPeso[b.avaliacao.status] + base[b.id] + bonus(b.id)));
+    }
+
+    function calcularResultado() {
+      const risco = avaliarRiscos();
+      const avaliados = ordenarPorPreferencia(metodosSUS.map(m => ({ ...m, avaliacao: classificarMetodo(m, risco) })));
+      renderResumo(risco, avaliados);
+      renderAlertas(risco);
+      renderMetodos(avaliados);
+      renderSOAP(risco, avaliados);
+      openTab("resultado");
+    }
+
+    function renderResumo(risco, avaliados) {
+      const elegiveisUBS = avaliados.filter(m => ["green","yellow"].includes(m.avaliacao.status) && m.disponibilidade === "ubs" && m.id !== "levonorgestrel");
+      const encaminhamento = avaliados.filter(m => m.disponibilidade === "encaminhamento" && m.avaliacao.status !== "red");
+      const contra = avaliados.filter(m => m.avaliacao.status === "red");
+
+      byId("painelResumo").innerHTML = `
+        <span class="pill ${risco.gravidezPossivel ? "orange" : "green"}">Gravidez possível: ${risco.gravidezPossivel ? "sim/incerta" : "não identificada"}</span>
+        <span class="pill ${risco.estrogenioContraindicado ? "red" : risco.estrogenioCautela ? "yellow" : "green"}">Pode estrogênio: ${risco.estrogenioContraindicado ? "não" : risco.estrogenioCautela ? "cautela" : "sim"}</span>
+        <span class="pill ${risco.progestagenioContraindicado ? "red" : risco.progestagenioCautela ? "yellow" : "green"}">Pode progestagênio: ${risco.progestagenioContraindicado ? "não" : risco.progestagenioCautela ? "cautela" : "sim"}</span>
+        <span class="pill ${risco.diuContraindicado ? "red" : risco.diuCautela ? "orange" : "green"}">DIU: ${risco.diuContraindicado ? "não/adiar" : risco.diuCautela ? "avaliar" : "possível"}</span>
+        <span class="pill ${risco.precisaMedico ? "orange" : "green"}">Discutir/encaminhar: ${risco.precisaMedico ? "sim" : "não obrigatório"}</span>
+      `;
+
+      byId("resumoRapido").innerHTML = `
+        <p><strong>Elegíveis e disponíveis na UBS:</strong><br>${elegiveisUBS.length ? elegiveisUBS.map(m => "• " + m.nome).join("<br>") : "Nenhum método direto liberado pelos dados preenchidos."}</p>
+        <p><strong>Elegíveis com encaminhamento:</strong><br>${encaminhamento.length ? encaminhamento.map(m => "• " + m.nome + " — " + m.acesso).join("<br>") : "Nenhum."}</p>
+        <p><strong>Contraindicados/evitar:</strong><br>${contra.length ? contra.map(m => "• " + m.nome).join("<br>") : "Nenhum método classificado como vermelho."}</p>
+      `;
+
+      const pref = value("preferencia");
+      let prioridade = "Priorizar método seguro, disponível na UBS e alinhado à preferência da paciente.";
+      if (pref === "longa") prioridade = "Paciente prefere longa duração: apresentar DIU de cobre e Implanon como opções com encaminhamento; oferecer método provisório disponível na UBS enquanto aguarda.";
+      if (pref === "semHormônio") prioridade = "Paciente prefere evitar hormônio: priorizar preservativo e DIU de cobre com encaminhamento para GO, se elegível.";
+      if (pref === "trimestral") prioridade = "Paciente prefere método trimestral: avaliar medroxiprogesterona 150 mg, se elegível, e orientar sangramento irregular/amenorreia.";
+      if (pref === "diario") prioridade = "Paciente aceita método diário: avaliar pílula combinada se puder estrogênio ou noretisterona 0,35 mg se preferir/precisar evitar estrogênio.";
+      if (pref === "mensal") prioridade = "Paciente prefere método mensal: avaliar injetável mensal combinado apenas se não houver contraindicação ao estrogênio.";
+      if (pref === "emergencia") prioridade = "Fluxo de emergência: avaliar levonorgestrel 0,75 mg e orientar método regular após o episódio.";
+      byId("prioridade").innerHTML = prioridade;
+    }
+
+    function renderAlertas(risco) {
+      byId("alertas").innerHTML = risco.alertas.length
+        ? risco.alertas.map(a => `<div class="warning"><strong>Alerta:</strong> ${a}</div>`).join("")
+        : `<div class="info">Nenhum alerta crítico identificado com os dados preenchidos. Manter aconselhamento, preservativo e registro adequado.</div>`;
+    }
+
+    function renderMetodos(avaliados) {
+      const label = { green:"Verde", yellow:"Amarelo", orange:"Laranja", red:"Vermelho" };
+      byId("metodosResultado").innerHTML = avaliados.map(m => `
+        <div class="method-card ${m.avaliacao.status}">
+          <div class="method-title">${m.nome}</div>
+          <div class="method-sub">${m.apresentacao} — ${m.tipo}</div>
+          <span class="pill ${m.avaliacao.status}">${label[m.avaliacao.status]}: ${m.avaliacao.tituloStatus}</span>
+          <span class="pill pink">${m.acesso}</span>
+          <ul class="method-reasons">${m.avaliacao.motivos.map(r => `<li>${r}</li>`).join("")}</ul>
+        </div>
+      `).join("");
+    }
+
+    function renderSOAP(risco, avaliados) {
+      const elegiveisUBS = avaliados.filter(m => ["green","yellow"].includes(m.avaliacao.status) && m.disponibilidade === "ubs" && m.id !== "levonorgestrel").map(m => m.nome);
+      const encaminhamento = avaliados.filter(m => m.disponibilidade === "encaminhamento" && m.avaliacao.status !== "red").map(m => `${m.nome} (${m.acesso})`);
+      const contra = avaliados.filter(m => m.avaliacao.status === "red").map(m => m.nome);
+      const alertas = risco.alertas.length ? risco.alertas.join(" ") : "Sem alertas críticos identificados no preenchimento.";
+
+      byId("soap").innerText =
+`S: Paciente comparece para consulta de planejamento reprodutivo/contracepção.
+Motivo: ${value("motivo") || "não informado"}.
+DUM: ${value("dum") || "não informada"}. Ciclo: ${value("ciclo") || "não informado"}.
+Relação sexual desprotegida nos últimos 5 dias: ${traduzir(value("rs5"))}.
+Relação sexual desprotegida desde a última menstruação: ${traduzir(value("rsdum"))}.
+Desejo gestacional nos próximos 12 meses: ${traduzir(value("desejoGestacao"))}.
+Amamentando: ${traduzir(value("amamentando"))}. Semanas pós-parto: ${value("semanasParto") || "não se aplica/não informado"}.
+Método atual: ${value("metodoAtual") || "não informado"}.
+Preferência da paciente: ${textoPreferencia(value("preferencia"))}.
+Observações: ${value("obs") || "sem observações adicionais"}.
+
+O: Idade: ${value("idade") || "não informada"} anos. PA: ${value("pas") || "__"}x${value("pad") || "__"} mmHg.
+Triagem de segurança realizada para contraindicações a estrogênio, progestagênio e DIU.
+Alertas identificados: ${alertas}
+
+A: Planejamento reprodutivo. Avaliação de elegibilidade contraceptiva realizada por apoio à decisão.
+Métodos elegíveis e disponíveis na UBS: ${elegiveisUBS.length ? elegiveisUBS.join("; ") : "não definidos pelos dados preenchidos"}.
+Métodos elegíveis com necessidade de encaminhamento: ${encaminhamento.length ? encaminhamento.join("; ") : "nenhum"}.
+Métodos a evitar/contraindicados nesta avaliação: ${contra.length ? contra.join("; ") : "nenhum"}.
+
+P: Realizado aconselhamento contraceptivo compartilhado, considerando preferência da paciente, elegibilidade clínica e disponibilidade municipal.
+Orientado uso de preservativo masculino para prevenção de IST.
+Se relação desprotegida/falha recente: avaliar contracepção de emergência com levonorgestrel conforme protocolo.
+Se escolha por DIU de cobre: encaminhar para GO conforme fluxo municipal.
+Se escolha por Implanon: encaminhar conforme fluxo municipal/priorização.
+Orientados efeitos esperados, modo de uso, sinais de alerta e retorno se dor pélvica importante, sangramento intenso, cefaleia intensa nova, sintomas tromboembólicos, suspeita de gestação ou efeitos adversos relevantes.`;
+    }
+
+    function traduzir(v) {
+      if (!v) return "não informado";
+      if (v === "sim") return "sim";
+      if (v === "nao") return "não";
+      if (v === "incerto") return "incerto";
+      return v;
+    }
+
+    function textoPreferencia(v) {
+      return {
+        diario:"método diário",
+        mensal:"método mensal",
+        trimestral:"método trimestral",
+        longa:"método de longa duração",
+        semHormônio:"evitar hormônio",
+        emergencia:"contracepção de emergência",
+        indiferente:"sem preferência definida/quer orientação"
+      }[v] || "não informada";
+    }
+
+    function copiarSOAP() {
+      const texto = byId("soap").innerText;
+      navigator.clipboard.writeText(texto).then(() => alert("SOAP copiado para a área de transferência."))
+      .catch(() => alert("Não foi possível copiar automaticamente. Selecione o texto e copie manualmente."));
+    }
+
+    function limparFormulario() {
+      document.querySelectorAll("input, select, textarea").forEach(el => {
+        if (el.type === "checkbox") el.checked = false;
+        else el.value = "";
+      });
+      byId("painelResumo").innerHTML = "Preencha a consulta e clique em “Gerar resultado”.";
+      byId("alertas").innerHTML = "";
+      byId("metodosResultado").innerHTML = "";
+      byId("resumoRapido").innerHTML = "Nenhum resultado gerado ainda.";
+      byId("prioridade").innerHTML = "Aguardando preenchimento.";
+      byId("soap").innerText = "Preencha os dados e gere o resultado.";
+      openTab("consulta");
+    }
+
+    preencherTabelaSUS();
+  </script>
+</body>
+</html>
 '''
-html = html.replace('    @media (max-width: 850px) {', footer_css + '\n    @media (max-width: 850px) {')
 
-# Add footer before body close
-html = html.replace('  <script>', '  <footer>Developed by SM APS</footer>\n\n  <script>')
-
-# Update print not hide footer
-# No change.
-
+path = Path("/mnt/data/escolha_segura_aps_contraceptivos_corrigido.html")
 path.write_text(html, encoding="utf-8")
 path.as_posix()
